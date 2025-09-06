@@ -2,10 +2,12 @@ version: '3.9'
 services:
   db:
     image: postgres:15
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: backend
-      POSTGRES_USER: backend
-      POSTGRES_PASSWORD: backend
+      POSTGRES_DB: ${DJANGO_DB_NAME}
+      POSTGRES_USER: ${DJANGO_DB_USER}
+      POSTGRES_PASSWORD: ${DJANGO_DB_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
