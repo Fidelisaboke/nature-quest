@@ -1,4 +1,8 @@
-django
-djangorestframework
-django-cors-headers
-python-dotenv
+asgiref==3.9.1
+Django==5.2.6
+django-cors-headers==4.7.0
+djangorestframework==3.16.1
+djangorestframework_simplejwt==5.5.1
+PyJWT==2.10.1
+python-dotenv==1.1.1
+sqlparse==0.5.3
