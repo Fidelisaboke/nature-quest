@@ -22,4 +22,4 @@ def register_user(request):
                 },status=status.HTTP_201_CREATED)
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 class MyTokenObtainPairView(TokenObtainPairView):
-    serializer_class = UserSerializer.myTokenObtainPairSerializer
+    serializer_class = UserSerializer.MyTokenObtainPairSerializer
