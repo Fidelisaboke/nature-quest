@@ -10,8 +10,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 # Create your views here.
 @api_view(['POST'])
-def registerUser(request):
-    if request.method == 'POST':
+def register_user(request):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
