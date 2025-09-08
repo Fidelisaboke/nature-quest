@@ -1,0 +1,8 @@
+Django>=4.0
+djangorestframework
+djangorestframework-authtoken
+Pillow
+requests
+numpy
+opencv-python
+# psycopg2-binary  # Uncomment if using PostgreSQL
