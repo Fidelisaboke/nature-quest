@@ -30,7 +30,7 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-change-me-in-produc
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
-AUTH_USER_MODEL = 'users.RegisterUser'
+AUTH_USER_MODEL = "users.RegisterUser"
 # ALLOWED_HOSTS configuration
 ALLOWED_HOSTS = []
 if os.getenv("DJANGO_ALLOWED_HOSTS"):
@@ -60,8 +60,10 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     "apps.health",
-    "apps.users"
-
+    "apps.users",
+    "apps.progress",
+    "apps.quests",
+    "apps.quiz",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
