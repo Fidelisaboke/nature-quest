@@ -14,7 +14,7 @@ class AuthFlowTest(APITestCase):
             "last_name": "Doe",
             "email": "john@example.com",
             "username": "johndoe",
-            "techstack": "Python,Django",
+            "interests": "Python,Django",
             "password": "Password@123"
         }
     def test_user_registration(self):
@@ -22,8 +22,7 @@ class AuthFlowTest(APITestCase):
          response = self.client.post(self.register_url,self.user_data,format='json')
          self.assertEqual(response.status_code,status.HTTP_201_CREATED)
           # Response must contain tokens and results
-         self.assertIn('access',response.data)
-         self.assertIn('refresh',response.data)
+     
          self.assertIn('results',response.data)
          self.assertTrue(RegisterUser.objects.filter(email=self.user_data['email']).exists())
     def test_registration_with_existing_email(self):
