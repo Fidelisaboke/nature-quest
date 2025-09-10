@@ -21,7 +21,7 @@ fi
 # Check if database is accessible
 if ! python -c "import psycopg2; psycopg2.connect(host='${POSTGRES_HOST:-localhost}', port='${POSTGRES_PORT:-5432}', dbname='${POSTGRES_DB:-nature_quest}', user='${POSTGRES_USER:-nature_quest_user}', password='${POSTGRES_PASSWORD}')" 2>/dev/null; then
     echo "Database not accessible. Running database setup..."
-    ./scripts/setup_postgres.sh
+    ./scripts/setup-db.sh
 fi
 
 # Run migrations
