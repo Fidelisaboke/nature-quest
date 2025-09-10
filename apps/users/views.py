@@ -4,6 +4,7 @@ from .serializers import UserRegistrationSerializer, LoginObtainPairSerializer,U
 from drf_spectacular.utils import extend_schema
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
 from .docs import (
     user_register_schema_args,
@@ -17,6 +18,7 @@ from .models import UserProfile
 
 @extend_schema(**user_register_schema_args, tags=["auth"])
 @api_view(["POST"])
+@permission_classes([AllowAny])
 def register_user(request):
     """Register a new user and return authentication tokens."""
     user_serializer = UserRegistrationSerializer(data=request.data)
