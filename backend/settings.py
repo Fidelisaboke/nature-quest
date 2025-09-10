@@ -30,7 +30,7 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-change-me-in-produc
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
-AUTH_USER_MODEL = 'users.RegisterUser'
+AUTH_USER_MODEL = "users.RegisterUser"
 # ALLOWED_HOSTS configuration
 ALLOWED_HOSTS = []
 if os.getenv("DJANGO_ALLOWED_HOSTS"):
@@ -56,13 +56,10 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "rest_framework",
     "corsheaders",
+    "drf_spectacular",
 ]
 
-LOCAL_APPS = [
-    "apps.health",
-    "apps.users"
-
-]
+LOCAL_APPS = ["apps.health", "apps.users"]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -171,9 +168,22 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
 }
+
+
+# DRF Spectacular settings
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Nature Quest API",
+    "DESCRIPTION": "A gamified backend service that helps people reconnect with nature through location-based quests and environmental challenges.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "COMPONENT_NO_READ_ONLY_REQUIRED": True,
+}
+
 
 # Logging configuration
 LOGGING = {
