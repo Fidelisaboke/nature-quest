@@ -1,6 +1,6 @@
 # serializers for the users app
 
-from .models import RegisterUser
+from .models import RegisterUser,UserProfile
 import re
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
@@ -59,3 +59,12 @@ class LoginRefreshSerializer(TokenRefreshSerializer):
         data = super().validate(attrs)
         data["message"] = "Token refreshed successfully"
         return data
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Serializer for the UserProfile model."""
+    display_name = serializers.CharField(source='user.username', read_only=True)
+    class Meta:
+        model = UserProfile
+        fields = ['profile_pic','bio', 'display_name', 'points', 'level']
+        read_only_fields = ['points', 'level']
+    

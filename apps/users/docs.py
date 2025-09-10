@@ -297,3 +297,74 @@ token_refresh_schema_args = {
         ),
     ],
 }
+user_profile_schema_args = {
+    "summary": "Get User Profile",
+    "description": "Retrieve the authenticated user's profile information. Automatically creates a profile if it doesn't exist.",
+    "responses": {
+        200: OpenApiResponse(
+            response=OpenApiTypes.OBJECT,
+            description="Profile retrieved successfully",
+            examples=[
+                OpenApiExample(
+                    "Profile Success",
+                    summary="Successful profile retrieval",
+                    value={
+                        "success": True,
+                        "message": "Profile retrieved successfully",
+                        "data": {
+                            "display_name": "wekesa",
+                            "email": "wekesa@example.com",
+                            "bio": "Software developer passionate about Python and Django",
+                            "user_profile": "/media/profile_pics/wekesa.jpg",
+                            "points": 150,
+                            "level": 3
+                        },
+                        "errors": None,
+                        "timestamp": "2025-09-09T09:44:19.400641+00:00",
+                        "request_id": "abfe3752",
+                    },
+                    response_only=True,
+                    status_codes=["200"],
+                ),
+            ],
+        ),
+        401: OpenApiResponse(
+            response=OpenApiTypes.OBJECT,
+            description="Authentication required",
+            examples=[
+                OpenApiExample(
+                    "Unauthorized Error",
+                    summary="Authentication required",
+                    value={
+                        "success": False,
+                        "message": "Authentication credentials were not provided",
+                        "data": None,
+                        "errors": {"detail": "Authentication credentials were not provided"},
+                        "timestamp": "2025-09-09T01:11:36.473264+00:00",
+                    },
+                    response_only=True,
+                    status_codes=["401"],
+                ),
+            ],
+        ),
+        500: OpenApiResponse(
+            response=OpenApiTypes.OBJECT,
+            description="Unexpected server error",
+            examples=[
+                OpenApiExample(
+                    "Internal Server Error",
+                    summary="Unexpected server error",
+                    value={
+                        "success": False,
+                        "message": "An internal server error occurred",
+                        "data": None,
+                        "errors": {"detail": "Internal server error."},
+                        "timestamp": "2025-09-09T01:11:36.473264+00:00",
+                    },
+                    response_only=True,
+                    status_codes=["500"],
+                ),
+            ],
+        ),
+    }
+}
