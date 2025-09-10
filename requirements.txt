@@ -18,6 +18,9 @@ jsonschema==4.25.1
 jsonschema-specifications==2025.4.1
 packaging==25.0
 pillow==11.3.0
+opencv-python
+numpy
+exifread
 pluggy==1.6.0
 psycopg2-binary==2.9.10
 Pygments==2.19.2

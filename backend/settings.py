@@ -30,7 +30,7 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-change-me-in-produc
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
-AUTH_USER_MODEL = 'users.RegisterUser'
+AUTH_USER_MODEL = "users.RegisterUser"
 # ALLOWED_HOSTS configuration
 ALLOWED_HOSTS = []
 if os.getenv("DJANGO_ALLOWED_HOSTS"):
@@ -41,6 +41,35 @@ if os.getenv("DJANGO_ALLOWED_HOSTS"):
     ]
 else:
     ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost").split(",")
+
+
+# =============================
+# External Service Configuration
+# =============================
+
+# --- HuggingFace API Settings ---
+HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY", "")  # API key for quiz generation
+HUGGINGFACE_BASE_URL = os.getenv("HUGGINGFACE_BASE_URL", "https://api-inference.huggingface.co/models")
+HUGGINGFACE_MODEL = os.getenv("HUGGINGFACE_MODEL", "microsoft/DialoGPT-large")  # Configurable model selection
+HUGGINGFACE_TIMEOUT = int(os.getenv("HUGGINGFACE_TIMEOUT", 30))  # Request timeout (seconds)
+HUGGINGFACE_MAX_RETRIES = int(os.getenv("HUGGINGFACE_MAX_RETRIES", 3))  # Retry attempts for failed requests
+
+# --- Location Verification API Settings ---
+LOCATION_VERIFICATION_API_KEY = os.getenv("LOCATION_VERIFICATION_API_KEY", "")  # API key for external location service
+LOCATION_VERIFICATION_BASE_URL = os.getenv("LOCATION_VERIFICATION_BASE_URL", "https://api.foursquare.com/v3/places")
+LOCATION_VERIFICATION_TIMEOUT = int(os.getenv("LOCATION_VERIFICATION_TIMEOUT", 15))  # Request timeout (seconds)
+
+# --- Photo/Location Verification Thresholds ---
+PHOTO_QUALITY_THRESHOLD = float(os.getenv("PHOTO_QUALITY_THRESHOLD", 0.6))  # Image quality threshold
+PHOTO_AUTHENTICITY_THRESHOLD = float(os.getenv("PHOTO_AUTHENTICITY_THRESHOLD", 0.7))  # Authenticity check threshold
+DEFAULT_VERIFICATION_RADIUS = int(os.getenv("DEFAULT_VERIFICATION_RADIUS", 500))  # Location verification radius (meters)
+
+# --- Additional Settings ---
+MAX_PHOTO_UPLOAD_SIZE = int(os.getenv("MAX_PHOTO_UPLOAD_SIZE", 10 * 1024 * 1024))  # 10MB default
+API_RATE_LIMIT_PER_MINUTE = int(os.getenv("API_RATE_LIMIT_PER_MINUTE", 60))  # 60 requests/minute default
+
+# --- Internal Service URLs ---
+PROGRESS_API_URL = os.getenv("PROGRESS_API_URL", "http://localhost:8000/api/progress")
 
 # Application definition
 DJANGO_APPS = [
@@ -56,13 +85,19 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "rest_framework",
     "corsheaders",
+<<<<<<< HEAD
     "django_filters",
+=======
+    "drf_spectacular",
+>>>>>>> 9aaaceb70e578ee68b4fadb35974eb22edd1e97a
 ]
 
 LOCAL_APPS = [
     "apps.health",
-    "apps.users"
-
+    "apps.users",
+    "apps.progress",
+    "apps.quests",
+    "apps.quiz",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -166,15 +201,33 @@ if not DEBUG and os.getenv("CORS_ALLOWED_ORIGINS"):
 
 # REST Framework settings
 REST_FRAMEWORK = {
+     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',  # Optional, for browsable API
+    ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
 }
+
+
+# DRF Spectacular settings
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Nature Quest API",
+    "DESCRIPTION": "A gamified backend service that helps people reconnect with nature through location-based quests and environmental challenges.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "COMPONENT_NO_READ_ONLY_REQUIRED": True,
+}
+
 
 # Logging configuration
 LOGGING = {

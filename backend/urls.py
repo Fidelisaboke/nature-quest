@@ -16,14 +16,21 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path,include
-from apps.health.views import HealthView
+from django.urls import path, include
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 
 urlpatterns = [
-
     path("admin/", admin.site.urls),
     path("api/v1/health/", include("apps.health.urls")),
     path("api/v1/users/", include("apps.users.urls")),
-
+    path("api/v1/progress/", include("apps.progress.urls")),
+    path("api/v1/quests/", include("apps.quests.urls")),
+    path("api/v1/quiz/", include("apps.quiz.urls")),
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path(
+        "api/docs/",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="swagger-ui",
+    ),
 ]
