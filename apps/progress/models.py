@@ -70,8 +70,8 @@ class UserProfile(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile"
     )
     is_techie = models.BooleanField(default=False)
-    tech_stacks = models.TextField(
-        blank=True, help_text="Comma-separated list of tech stacks"
+    interests = models.TextField(
+        blank=True, help_text="Comma-separated list of interests"
     )
     total_points = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     current_level = models.ForeignKey(

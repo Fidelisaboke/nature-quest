@@ -42,8 +42,8 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=False, methods=["patch"])
-    def update_tech_preferences(self, request):
-        """Update user's tech preferences"""
+    def update_interests(self, request):
+        """Update user's interests"""
         profile = self.get_object()
         serializer = self.get_serializer(profile, data=request.data, partial=True)
         if serializer.is_valid():

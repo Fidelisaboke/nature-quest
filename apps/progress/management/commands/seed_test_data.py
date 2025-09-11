@@ -186,7 +186,7 @@ class Command(BaseCommand):
             "user": user,
             "challenge_id": 1,  # Reference to first challenge
             "difficulty": "medium",
-            "tech_stack": "Nature Knowledge",
+            "interests": "Nature Knowledge",
         }
 
         quiz, created = Quiz.objects.get_or_create(
@@ -202,7 +202,7 @@ class Command(BaseCommand):
                 {
                     "question_text": "Which of the following is the largest species of bear found in North America?",
                     "question_type": "multiple_choice",
-                    "tech_stack": "Nature Knowledge",
+                    "interests": "Nature Knowledge",
                     "difficulty": "medium",
                     "options": [
                         "Black Bear",
@@ -218,7 +218,7 @@ class Command(BaseCommand):
                 {
                     "question_text": "What is the primary method trees use to transport water from roots to leaves?",
                     "question_type": "multiple_choice",
-                    "tech_stack": "Nature Knowledge",
+                    "interests": "Nature Knowledge",
                     "difficulty": "medium",
                     "options": [
                         "Osmosis",
@@ -234,7 +234,7 @@ class Command(BaseCommand):
                 {
                     "question_text": "Which biome is characterized by permafrost and very short growing seasons?",
                     "question_type": "multiple_choice",
-                    "tech_stack": "Nature Knowledge",
+                    "interests": "Nature Knowledge",
                     "difficulty": "medium",
                     "options": ["Taiga", "Tundra", "Temperate Forest", "Grassland"],
                     "correct_answers": [1],  # Tundra is at index 1
@@ -245,7 +245,7 @@ class Command(BaseCommand):
                 {
                     "question_text": "Mycorrhizal fungi form beneficial relationships with plant roots.",
                     "question_type": "multiple_choice",
-                    "tech_stack": "Nature Knowledge",
+                    "interests": "Nature Knowledge",
                     "difficulty": "medium",
                     "options": ["True", "False"],
                     "correct_answers": [0],  # True is at index 0
@@ -256,7 +256,7 @@ class Command(BaseCommand):
                 {
                     "question_text": "What percentage of Earth's surface is covered by forests?",
                     "question_type": "multiple_choice",
-                    "tech_stack": "Nature Knowledge",
+                    "interests": "Nature Knowledge",
                     "difficulty": "medium",
                     "options": ["15%", "31%", "45%", "52%"],
                     "correct_answers": [1],  # 31% is at index 1

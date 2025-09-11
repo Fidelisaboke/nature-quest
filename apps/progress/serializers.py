@@ -48,7 +48,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     quiz_difficulty_level = serializers.ReadOnlyField()
     username = serializers.CharField(source="user.username", read_only=True)
     email = serializers.EmailField(source="user.email", read_only=True)
-    tech_stacks_list = serializers.SerializerMethodField()
+    interests_list = serializers.SerializerMethodField()
 
     class Meta:
         model = UserProfile
@@ -56,8 +56,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "username",
             "email",
             "is_techie",
-            "tech_stacks",
-            "tech_stacks_list",
+            "interests",
+            "interests_list",
             "total_points",
             "current_level",
             "challenges_completed",
@@ -69,18 +69,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["total_points", "challenges_completed", "quizzes_completed"]
 
-    def get_tech_stacks_list(self, obj):
-        """Convert comma-separated tech stacks to list"""
-        if obj.tech_stacks:
+    def get_interests_list(self, obj):
+        """Convert comma-separated interests to list"""
+        if obj.interests:
             return [
-                stack.strip() for stack in obj.tech_stacks.split(",") if stack.strip()
+                interest.strip() for interest in obj.interests.split(",") if interest.strip()
             ]
         return []
 
     def update(self, instance, validated_data):
-        """Allow updating tech preferences"""
+        """Allow updating interests preferences"""
         instance.is_techie = validated_data.get("is_techie", instance.is_techie)
-        instance.tech_stacks = validated_data.get("tech_stacks", instance.tech_stacks)
+        instance.interests = validated_data.get("interests", instance.interests)
         instance.save()
         return instance
 

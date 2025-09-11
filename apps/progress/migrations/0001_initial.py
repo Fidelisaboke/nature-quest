@@ -119,9 +119,9 @@ class Migration(migrations.Migration):
                 ),
                 ("is_techie", models.BooleanField(default=False)),
                 (
-                    "tech_stacks",
+                    "interests",
                     models.TextField(
-                        blank=True, help_text="Comma-separated list of tech stacks"
+                        blank=True, help_text="Comma-separated list of interests"
                     ),
                 ),
                 (

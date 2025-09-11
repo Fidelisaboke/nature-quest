@@ -40,7 +40,7 @@ if os.getenv("DJANGO_ALLOWED_HOSTS"):
         if host.strip()
     ]
 else:
-    ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost").split(",")
+    ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 
 # =============================
@@ -132,19 +132,27 @@ WSGI_APPLICATION = "backend.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-DATABASES = {
-    "default": {
-        "ENGINE": "django.contrib.gis.db.backends.postgis",
-        "NAME": os.getenv("POSTGRES_DB", "nature_quest"),
-        "USER": os.getenv("POSTGRES_USER", "nature_quest_user"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
-        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
-        "OPTIONS": {
-            "connect_timeout": 10,
-        },
+if os.getenv("USE_SQLITE_FOR_TESTS", "False").lower() == "true":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.contrib.gis.db.backends.postgis",
+            "NAME": os.getenv("POSTGRES_DB", "nature_quest"),
+            "USER": os.getenv("POSTGRES_USER", "nature_quest_user"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
+            "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+            "PORT": os.getenv("POSTGRES_PORT", "5432"),
+            "OPTIONS": {
+                "connect_timeout": 10,
+            },
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
