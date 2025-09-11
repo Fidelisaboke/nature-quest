@@ -1,15 +1,17 @@
 from datetime import timezone
 import logging
 from celery import shared_task
-from .models import QuestLog, ChallengeLog, TriviaQuestion
+from .models import QuestLog
 
 logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=3)
 def update_quest_progress(self, quest_log_id):
     try:
+        quest_log = QuestLog.objects.get(id=quest_log_id)
+        user = quest_log.user
         in_progress_quests = QuestLog.objects.filter(
-            user=self.request.user,
+            user=user,
             status='in_progress'
         ).select_related('quest', 'quest__challenges', 'quest__trivia_questions').all()
         
@@ -17,16 +19,9 @@ def update_quest_progress(self, quest_log_id):
         now = timezone.now()
 
         for progress in in_progress_quests:
-            # Check if quest has expired
-            if progress.quest.expiry_date and progress.quest.expiry_date < now:
-                progress.status = 'abandoned'
-                progress.save()
-                updated_count += 1
-                continue
-
             # Check if all challenges are completed
             total_challenges = progress.quest.challenges.count()
-            completed_challenges = progress.quest.challenges.filter(challenge_logs__user=progress.user, challenge_logs__status='completed').count()
+            completed_challenges = progress.quest.challenges.filter(challenge_logs__user=progress.user).count()
             
             # Update progress percentage
             if total_challenges > 0:
@@ -40,7 +35,19 @@ def update_quest_progress(self, quest_log_id):
                         progress.end_time = now
 
                         # Award experience points to user
-                        progress.user.experience += progress.quest.experience_reward
-                        progress.user.save(update_fields=['experience_points'])
-                        
-                        
+                        progress.user.profile.points += progress.quest.experience_reward
+                        progress.experience_earned = progress.quest.experience_reward
+                        progress.user.profile.save(update_fields=['points'])
+                    
+                    progress.save(
+                        update_fields=['progress', 'status', 'end_time', 'experience_earned']
+                    )
+                    updated_count += 1
+        
+        logger.info(f"Updated {updated_count} quest progress records")
+        return f"Updated {updated_count} quest progress records"
+    
+    except Exception as e:
+        logger.error(f"Failed to update quest progress: {e}", exc_info=True)
+        self.retry(exc=e, countdown=60 * 5)
+        return f"Failed to update quest progress: {e}"

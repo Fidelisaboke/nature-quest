@@ -69,7 +69,6 @@ MAX_PHOTO_UPLOAD_SIZE = int(os.getenv("MAX_PHOTO_UPLOAD_SIZE", 10 * 1024 * 1024)
 API_RATE_LIMIT_PER_MINUTE = int(os.getenv("API_RATE_LIMIT_PER_MINUTE", 60))  # 60 requests/minute default
 
 # --- Internal Service URLs ---
-PROGRESS_API_URL = os.getenv("PROGRESS_API_URL", "http://localhost:8000/api/progress")
 
 # Application definition
 DJANGO_APPS = [
@@ -85,19 +84,13 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "rest_framework",
     "corsheaders",
-<<<<<<< HEAD
-    "django_filters",
-=======
     "drf_spectacular",
->>>>>>> 9aaaceb70e578ee68b4fadb35974eb22edd1e97a
 ]
 
 LOCAL_APPS = [
     "apps.health",
     "apps.users",
-    "apps.progress",
     "apps.quests",
-    "apps.quiz",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

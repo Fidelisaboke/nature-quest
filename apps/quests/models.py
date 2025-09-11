@@ -2,7 +2,7 @@ from calendar import c
 from email.policy import default
 from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
-from users.models import RegisterUser
+from apps.users.models import RegisterUser
 
 # Create your models here.
 class Quest(models.Model):
@@ -58,7 +58,7 @@ class Location(models.Model):
     longitude = models.DecimalField(max_digits=9, decimal_places=6)
     address = models.CharField(max_length=255, blank=True, null=True)
     source = models.CharField(max_length=255, blank=True, null=True)
-    distance = models.DecimalField(max_digits=10, decimal_places=6, blank=True, null=True, index=True)
+    distance = models.DecimalField(max_digits=10, decimal_places=6, blank=True, null=True)
     metadata = models.JSONField(default=dict, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
