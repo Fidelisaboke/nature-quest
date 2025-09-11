@@ -33,15 +33,37 @@ warn() {
 # =============================================================================
 
 run_psql_super() {
+    local sql="$1"
+    local db="${2:-postgres}"
+    # Prefer non-interactive sudo; fall back to password only if explicitly allowed.
     if [ -z "${POSTGRES_ADMIN_PASSWORD:-}" ]; then
-        # Try with sudo first, then with default postgres password
-        if ! sudo -u postgres psql -c "$1" 2>/dev/null; then
-            PGPASSWORD="postgres" psql -U postgres -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -d postgres -c "$1"
+        # Try non-interactive sudo first
+        if sudo -n -u postgres psql -v ON_ERROR_STOP=1 -d "$db" -c "$sql" 2>/dev/null; then
+            return 0
+        fi
+        # Only use the default “postgres” password if explicitly opted in
+        if [ "${POSTGRES_ASSUME_DEFAULT_PASSWORD:-false}" = "true" ]; then
+            PGPASSWORD="postgres" psql \
+              -U postgres \
+              -h "$POSTGRES_HOST" \
+              -p "$POSTGRES_PORT" \
+              -d "$db" \
+              -v ON_ERROR_STOP=1 \
+              -c "$sql"
+        else
+            return 1
         fi
     else
-        PGPASSWORD="$POSTGRES_ADMIN_PASSWORD" psql -U postgres -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -d postgres -c "$1"
+        PGPASSWORD="$POSTGRES_ADMIN_PASSWORD" psql \
+          -U postgres \
+          -h "$POSTGRES_HOST" \
+          -p "$POSTGRES_PORT" \
+          -d "$db" \
+          -v ON_ERROR_STOP=1 \
+          -c "$sql"
     fi
 }
+
 
 run_psql_db() {
     PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -d "$POSTGRES_DB" -c "$1"
@@ -137,7 +159,7 @@ log "Enabling required extensions in '$POSTGRES_DB'..."
 extensions=("postgis" "uuid-ossp" "pg_trgm")
 for ext in "${extensions[@]}"; do
         log "Installing extension: $ext"
-    if ! run_psql_super "CREATE EXTENSION IF NOT EXISTS \"$ext\" WITH SCHEMA public;" 2>/dev/null; then
+    if ! run_psql_super "CREATE EXTENSION IF NOT EXISTS \"$ext\" WITH SCHEMA public;" "$POSTGRES_DB" 2>/dev/null; then
         warn "Could not install extension '$ext'. This might be okay for basic functionality."
     fi
 done

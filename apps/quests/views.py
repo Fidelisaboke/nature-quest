@@ -1,18 +1,37 @@
 import logging
 import time
-
-from django.core import paginator
-from django.views.generic.list import Paginator
+from django.core.paginator import Paginator
 from haversine import haversine
-from django.db.models import F, Case, CharField, Value, When
+from django.db.models import F, Case, CharField, Value, When, FieldError
+from django.db.utils import DatabaseError
 from django.http import Http404
-from rest_framework import viewsets, status, permissions, generics, filters
+from rest_framework import viewsets, status, permissions,filters
 from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Quest, QuestLog, Challenge, ChallengeLog, TriviaQuestion
 from .serializers import QuestSerializer, QuestLogSerializer, ChallengeSerializer, ChallengeLogSerializer
+
+
+class ChallengeViewSet(viewsets.ModelViewSet):
+    queryset = Challenge.objects.all()
+    serializer_class = ChallengeSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['is_mandatory']
+    ordering_fields = ['order', 'created_at']
+    ordering = ['order']
+
+    def get_queryset(self):
+        return super().get_queryset().prefetch_related('quests')
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['include_quests'] = self.request.query_params.get('include_quests', 'false').lower() == 'true'
+        return context
+
+logger = logging.getLogger(__name__)
 
 # Create your views here.
 class QuestViewSet(viewsets.ModelViewSet):
@@ -34,7 +53,6 @@ class QuestViewSet(viewsets.ModelViewSet):
         """
         Filter quests based on user's progress with improved performance and error handling.
         """
-        logger = logging.getLogger(__name__)
         queryset = super().get_queryset()
 
         # Early return if user not authenticated
@@ -70,10 +88,9 @@ class QuestViewSet(viewsets.ModelViewSet):
             if statuses:
                 # Optimize query based on filter type
                 if status_filter == 'not_started':
-                    # Use subquery for better performance with large datasets
+                    # Find quests that the user has NOT started (no QuestLog entry)
                     started_quest_ids = QuestLog.objects.filter(
-                        user=self.request.user,
-                        status__in=statuses
+                        user=self.request.user
                     ).values('quest_id')
 
                     queryset = queryset.exclude(id__in=started_quest_ids)
@@ -88,29 +105,46 @@ class QuestViewSet(viewsets.ModelViewSet):
                     queryset = queryset.filter(id__in=quest_ids)
                     logger.debug(f"Applied include filter for {len(quest_ids)} quests")
 
-            # Add user status annotation with correct field reference
+            from django.db.models import OuterRef, Subquery, CharField
+            from django.db.models.functions import Coalesce
+
+            # Get the latest quest log for each quest for the current user
+            latest_quest_log = QuestLog.objects.filter(
+                quest=OuterRef('pk'),
+                user=self.request.user
+            ).order_by('-created_at').values('status')[:1]
+
+            # Annotate with the user's status using a subquery
             queryset = queryset.annotate(
-                user_status=Case(
-                    When(quest_logs__user=self.request.user, then=F('quest_logs__status')),
-                    default=Value('not_started'),
+                user_status=Coalesce(
+                    Subquery(latest_quest_log, output_field=CharField()),
+                    Value('not_started'),
                     output_field=CharField()
                 )
-            ).prefetch_related('quest_logs')  # Prevent N+1 queries
+            )
 
-            logger.debug(f"Annotated queryset with user_status and prefetch_related")
+            logger.debug("Annotated queryset with user_status using Subquery")
 
-        except Exception as e:
+        except (ValueError, FieldError, DatabaseError) as e:
             logger.error(f"Error in get_queryset: {e}", exc_info=True)
-            # Return base queryset on error to prevent breaking the API
             return super().get_queryset()
-
         return queryset
-    
-    @action(detail=True, methods=['get'])
-    def find_quest_nearby(self, request, pk=None):
-        """Find quests within a radius of the user's location"""
+    @action(detail=False, methods=['get'])
+    def find_quest_nearby(self, request):
         try:
             latitude = float(request.query_params.get('latitude'))
+            longitude = float(request.query_params.get('longitude'))
+            radius = float(request.query_params.get('radius', 10))
+            
+            if not (-90 <= latitude <= 90):
+                raise ValueError("Latitude must be between -90 and 90")
+            if not (-180 <= longitude <= 180):
+                raise ValueError("Longitude must be between -180 and 180")
+            if radius <= 0:
+                raise ValueError("Radius must be positive")
+        
+        except (TypeError, ValueError):
+            return Response({'error': 'Invalid parameters'}, status=status.HTTP_400_BAD_REQUEST)
             longitude = float(request.query_params.get('longitude'))
             radius = float(request.query_params.get('radius', 10))
         
@@ -143,24 +177,45 @@ class QuestViewSet(viewsets.ModelViewSet):
         page_number = request.query_params.get('page', 1)
         page = paginator.get_page(page_number)
 
+        # Serialize the quests in the current page
+        serialized_quests = page.object_list
+
         return Response({
-            'quests': page,
-            'count': paginator.count,
-            'pages': paginator.num_pages
+            'quests': serialized_quests,
+            'page': page.number,
+            'total_pages': paginator.num_pages,
+            'has_next': page.has_next(),
+            'has_previous': page.has_previous(),
+            'total_count': paginator.count
         })
 
     @action(detail=True, methods=['post'])
     def start_quest(self, request, pk=None):
         """Start a quest for the current user"""
-        quest = Quest.objects.get(pk=pk)
-        user = request.user
+        try:
+            quest = Quest.objects.get(pk=pk)
+            user = request.user
 
-        # Check if user already has progress for this quest
-        progress, created = QuestLog.objects.get_or_create(user=user, quest=quest, defaults={'status': 'in_progress', 'progress': 0})
+            # Check if user already has progress for this quest
+            progress, created = QuestLog.objects.get_or_create(
+                user=user, 
+                quest=quest, 
+                defaults={'status': 'in_progress', 'progress': 0}
+            )
 
-        if not created and progress.status == 'abandoned':
-            progress.status = 'in_progress'
-            progress.save()
+            if not created and progress.status == 'abandoned':
+                progress.status = 'in_progress'
+                progress.save()
 
-        serializer = QuestLogSerializer(progress)
-        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+            serializer = QuestLogSerializer(progress)
+            return Response(
+                serializer.data, 
+                status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
+            )
+            
+        except Quest.DoesNotExist:
+            logger.warning(f'Attempted to start non-existent quest with id: {pk}')
+            return Response(
+                {'error': 'Quest not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
