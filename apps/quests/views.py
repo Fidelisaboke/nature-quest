@@ -2,12 +2,14 @@ import logging
 import time
 from django.core.paginator import Paginator
 from haversine import haversine
-from django.db.models import F, Case, CharField, Value, When, FieldError
+from django.db.models import F, Case, CharField, Value, When
+from django.core.exceptions import FieldError
 from django.db.utils import DatabaseError
 from django.http import Http404
-from rest_framework import viewsets, status, permissions,filters
+from rest_framework import viewsets, status, permissions
+from rest_framework.filters import SearchFilter
 from rest_framework.exceptions import ValidationError
-from django_filters.rest_framework import DjangoFilterBackend
+from django_filters import rest_framework as filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Quest, QuestLog, Challenge, ChallengeLog, TriviaQuestion
@@ -18,7 +20,7 @@ class ChallengeViewSet(viewsets.ModelViewSet):
     queryset = Challenge.objects.all()
     serializer_class = ChallengeSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filter_backends = [filters.DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['is_mandatory']
     ordering_fields = ['order', 'created_at']
     ordering = ['order']
@@ -38,7 +40,7 @@ class QuestViewSet(viewsets.ModelViewSet):
     queryset = Quest.objects.all()
     serializer_class = QuestSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [filters.DjangoFilterBackend, SearchFilter, filters.OrderingFilter]
     filterset_fields = {
         'quest_type': ['exact', 'in'],
         'difficulty': ['exact', 'in'],
