@@ -69,7 +69,6 @@ MAX_PHOTO_UPLOAD_SIZE = int(os.getenv("MAX_PHOTO_UPLOAD_SIZE", 10 * 1024 * 1024)
 API_RATE_LIMIT_PER_MINUTE = int(os.getenv("API_RATE_LIMIT_PER_MINUTE", 60))  # 60 requests/minute default
 
 # --- Internal Service URLs ---
-PROGRESS_API_URL = os.getenv("PROGRESS_API_URL", "http://localhost:8000/api/progress")
 
 # Application definition
 DJANGO_APPS = [
@@ -86,14 +85,13 @@ THIRD_PARTY_APPS = [
     "rest_framework",
     "corsheaders",
     "drf_spectacular",
+    "django_filters",
 ]
 
 LOCAL_APPS = [
     "apps.health",
     "apps.users",
-    "apps.progress",
     "apps.quests",
-    "apps.quiz",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -277,3 +275,13 @@ LOGGING = {
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# CRSF settings
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
+CSRF_COOKIE_SECURE = DEBUG is False
+SESSION_COOKIE_SECURE = DEBUG is False
+CSRF_COOKIE_HTTPONLY = True
