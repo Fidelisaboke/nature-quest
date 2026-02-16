@@ -6,7 +6,7 @@ urlpatterns = [
     path("auth/login/", LoginObtainPairView.as_view(), name="login"),
     path("auth/token/refresh/", LoginRefreshView.as_view(), name="token_refresh"),
     path("auth/password_reset/", password_reset_request, name="password_reset"),
-    path("auth/password_reset_confirm/<uidb64>/<token>/", password_reset_confirm, name="password_reset_confirm"),
+    path("auth/password_reset_confirm/<uid>/<int:token>/", password_reset_confirm, name="password_reset_confirm"),
     
     path("auth/me/",get_user_profile,name="profile")
 ]
