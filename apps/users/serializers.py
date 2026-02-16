@@ -33,7 +33,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        """Create a new user with encrypted password."""
+        """Create a new user with an encrypted password."""
         user = RegisterUser.objects.create_user(
             email=validated_data["email"],
             password=validated_data["password"],

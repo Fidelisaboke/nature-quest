@@ -7,7 +7,7 @@ from django.core.exceptions import FieldError
 from django.db.utils import DatabaseError
 from django.http import Http404
 from rest_framework import viewsets, status, permissions
-from rest_framework.filters import SearchFilter
+from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.exceptions import ValidationError
 from django_filters import rest_framework as filters
 from rest_framework.decorators import action
@@ -20,7 +20,7 @@ class ChallengeViewSet(viewsets.ModelViewSet):
     queryset = Challenge.objects.all()
     serializer_class = ChallengeSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    filter_backends = [filters.DjangoFilterBackend, filters.OrderingFilter]
+    filter_backends = [filters.DjangoFilterBackend, OrderingFilter]
     filterset_fields = ['is_mandatory']
     ordering_fields = ['order', 'created_at']
     ordering = ['order']
@@ -33,6 +33,80 @@ class ChallengeViewSet(viewsets.ModelViewSet):
         context['include_quests'] = self.request.query_params.get('include_quests', 'false').lower() == 'true'
         return context
 
+    @action(detail=True, methods=['post'])
+    def start_challenge(self, request, pk=None):
+        """Start a challenge for the current user"""
+        try:
+            challenge = Challenge.objects.get(pk=pk)
+            user = request.user
+
+            # Get or create challenge log
+            progress, created = ChallengeLog.objects.get_or_create(
+                user=user,
+                challenge=challenge,
+                defaults={'experience_earned': 0}
+            )
+
+            serializer = ChallengeLogSerializer(progress)
+            return Response(
+                serializer.data,
+                status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
+            )
+
+        except Challenge.DoesNotExist:
+            logger.warning(f'Attempted to start non-existent challenge with id: {pk}')
+            return Response(
+                {'error': 'Challenge not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=True, methods=['post'])
+    def complete_challenge(self, request, pk=None):
+        """Complete a challenge for the current user"""
+        try:
+            challenge = Challenge.objects.get(pk=pk)
+            user = request.user
+
+            # Get or create challenge log
+            progress, created = ChallengeLog.objects.get_or_create(
+                user=user,
+                challenge=challenge,
+                defaults={'experience_earned': challenge.experience_reward}
+            )
+
+            if not created:
+                progress.experience_earned = challenge.experience_reward
+                progress.save()
+
+            serializer = ChallengeLogSerializer(progress)
+            return Response(serializer.data)
+
+        except Challenge.DoesNotExist:
+            logger.warning(f'Attempted to complete non-existent challenge with id: {pk}')
+            return Response(
+                {'error': 'Challenge not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=True, methods=['post'])
+    def abandon_challenge(self, request, pk=None):
+        """Abandon a challenge for the current user"""
+        try:
+            challenge = Challenge.objects.get(pk=pk)
+            user = request.user
+
+            # Delete challenge log if exists (abandon = remove progress)
+            ChallengeLog.objects.filter(user=user, challenge=challenge).delete()
+
+            return Response({'message': 'Challenge abandoned successfully'})
+
+        except Challenge.DoesNotExist:
+            logger.warning(f'Attempted to abandon non-existent challenge with id: {pk}')
+            return Response(
+                {'error': 'Challenge not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
 logger = logging.getLogger(__name__)
 
 # Create your views here.
@@ -40,7 +114,7 @@ class QuestViewSet(viewsets.ModelViewSet):
     queryset = Quest.objects.all()
     serializer_class = QuestSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    filter_backends = [filters.DjangoFilterBackend, SearchFilter, filters.OrderingFilter]
+    filter_backends = [filters.DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = {
         'quest_type': ['exact', 'in'],
         'difficulty': ['exact', 'in'],
@@ -217,6 +291,63 @@ class QuestViewSet(viewsets.ModelViewSet):
             
         except Quest.DoesNotExist:
             logger.warning(f'Attempted to start non-existent quest with id: {pk}')
+            return Response(
+                {'error': 'Quest not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=True, methods=['post'])
+    def complete_quest(self, request, pk=None):
+        """Complete a quest for the current user"""
+        try:
+            quest = Quest.objects.get(pk=pk)
+            user = request.user
+
+            # Get or create quest log
+            progress, created = QuestLog.objects.get_or_create(
+                user=user, 
+                quest=quest,
+                defaults={'status': 'completed', 'progress': 100}
+            )
+
+            if not created:
+                progress.status = 'completed'
+                progress.progress = 100
+                progress.save()
+
+            serializer = QuestLogSerializer(progress)
+            return Response(serializer.data)
+            
+        except Quest.DoesNotExist:
+            logger.warning(f'Attempted to complete non-existent quest with id: {pk}')
+            return Response(
+                {'error': 'Quest not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=True, methods=['post'])
+    def abandon_quest(self, request, pk=None):
+        """Abandon a quest for the current user"""
+        try:
+            quest = Quest.objects.get(pk=pk)
+            user = request.user
+
+            # Get or create quest log
+            progress, created = QuestLog.objects.get_or_create(
+                user=user, 
+                quest=quest,
+                defaults={'status': 'abandoned', 'progress': 0}
+            )
+
+            if not created:
+                progress.status = 'abandoned'
+                progress.save()
+
+            serializer = QuestLogSerializer(progress)
+            return Response(serializer.data)
+            
+        except Quest.DoesNotExist:
+            logger.warning(f'Attempted to abandon non-existent quest with id: {pk}')
             return Response(
                 {'error': 'Quest not found'}, 
                 status=status.HTTP_404_NOT_FOUND

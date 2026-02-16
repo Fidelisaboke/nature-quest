@@ -114,7 +114,7 @@ class Location(models.Model):
         verbose_name_plural = "Locations"
         constraints = [
             models.CheckConstraint(
-                check=(
+                condition=(
                     models.Q(
                         latitude__isnull=False,
                         longitude__isnull=False,

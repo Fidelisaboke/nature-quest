@@ -13,6 +13,7 @@ class RegisterUser(AbstractUser):
   def __str__(self):
         return self.email
 class UserProfile(models.Model):
+    objects = None
     user = models.OneToOneField(RegisterUser, on_delete=models.CASCADE, related_name='profile')
     bio = models.TextField(blank=True)
     profile_pic = models.ImageField(upload_to='profile_pics/', blank=True, null=True)

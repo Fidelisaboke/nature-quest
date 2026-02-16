@@ -39,13 +39,13 @@ def register_user(request):
 
 
 class LoginObtainPairView(TokenObtainPairView):
-    """Custom token obtain view with API documentation."""
+    """Custom token gets view with API documentation."""
 
     serializer_class = LoginObtainPairSerializer
 
     @extend_schema(**user_login_schema_args, tags=["auth"])
     def post(self, request, *args, **kwargs):
-        """Authenticate user and return JWT tokens."""
+        """Authenticate the user and return JWT tokens."""
         response = super().post(request, *args, **kwargs)
         if response.status_code == 200:
             return api_response(
@@ -75,10 +75,10 @@ class LoginRefreshView(TokenRefreshView):
 def get_user_profile(request):
     """
     Retrieve the authenticated user's profile.
-    Automatically creates profile if it doesn't exist.
+    Automatically creates a profile if it doesn't exist.
     """
     try:
-        # Get or create user profile (creates with default values if not exists)
+        # Get or create a user profile (creates with default values if not exists)
         profile, created = UserProfile.objects.get_or_create(user=request.user)
         
         serializer = UserProfileSerializer(profile)
