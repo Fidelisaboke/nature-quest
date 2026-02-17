@@ -102,3 +102,102 @@ class TriviaQuestionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
         extra_kwargs = {'correct_answer': {'write_only': True}}
+
+
+class LocationCheckpointSerializer(serializers.ModelSerializer):
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LocationCheckpoint
+        fields = ['id', 'name', 'latitude', 'longitude', 'radius_meters', 'order', 'is_required']
+
+    def get_latitude(self, obj):
+        return obj.point.y if obj.point else None
+
+    def get_longitude(self, obj):
+        return obj.point.x if obj.point else None
+
+
+class UserProgressCheckpointSerializer(serializers.ModelSerializer):
+    checkpoint = LocationCheckpointSerializer(read_only=True)
+
+    class Meta:
+        model = UserProgressCheckpoint
+        fields = ['checkpoint', 'visited_at', 'latitude', 'longitude']
+
+
+class BadgeSerializer(serializers.ModelSerializer):
+    tier_display = serializers.CharField(source='get_tier_display', read_only=True)
+    category_display = serializers.CharField(source='get_category_display', read_only=True)
+
+    class Meta:
+        model = Badge
+        fields = [
+            'id', 'name', 'description', 'icon', 'tier', 'tier_display',
+            'category', 'category_display', 'requirement_type',
+            'requirement_value', 'quest_type_filter'
+        ]
+
+
+class UserBadgeSerializer(serializers.ModelSerializer):
+    badge = BadgeSerializer(read_only=True)
+    progress_percentage = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserBadge
+        fields = ['badge', 'progress', 'progress_percentage', 'is_complete', 'earned_at']
+
+    def get_progress_percentage(self, obj):
+        if obj.badge.requirement_value > 0:
+            return min(100, int((obj.progress / obj.badge.requirement_value) * 100))
+        return 0
+
+
+class CarbonImpactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CarbonImpact
+        fields = [
+            'activity_type', 'distance_km', 'carbon_saved_kg',
+            'trees_equivalent', 'calculated_at'
+        ]
+
+
+class LeaderboardEntrySerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    display_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LeaderboardEntry
+        fields = ['rank', 'username', 'display_name', 'score', 'updated_at']
+
+    def get_display_name(self, obj):
+        # Use user's profile display name or username
+        return getattr(obj.user, 'profile', None) and obj.user.profile.display_name or obj.user.username
+
+
+# Enhanced QuestSerializer with checkpoints
+class EnhancedQuestSerializer(QuestSerializer):
+    checkpoints = LocationCheckpointSerializer(many=True, read_only=True)
+    user_progress = serializers.SerializerMethodField()
+
+    class Meta(QuestSerializer.Meta):
+        fields = QuestSerializer.Meta.fields + ['checkpoints', 'user_progress']
+
+    def get_user_progress(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+
+        try:
+            quest_log = QuestLog.objects.get(user=request.user, quest=obj)
+            return {
+                'status': quest_log.status,
+                'progress': quest_log.progress,
+                'checkpoints_visited': UserProgressCheckpoint.objects.filter(
+                    quest_log=quest_log
+                ).count(),
+                'total_checkpoints': obj.checkpoints.filter(is_required=True).count()
+            }
+        except QuestLog.DoesNotExist:
+            return None

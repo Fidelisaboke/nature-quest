@@ -249,7 +249,7 @@ class TriviaQuestion(models.Model):
     tags = models.JSONField(default=list)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     def clean(self):
         super().clean()
         if self.choices and self.correct_answer:
@@ -257,15 +257,166 @@ class TriviaQuestion(models.Model):
                 raise ValidationError({
                     'correct_answer': f'"{self.correct_answer}" must be one of the choices: {self.choices}'
                 })
-    
+
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
-    
+
     def __str__(self):
         return self.question_text
-    
+
     class Meta:
         verbose_name_plural = "Trivia Questions"
         ordering = ['question_text']
+
+
+class LocationCheckpoint(models.Model):
+    """Multi-point validation checkpoints within quests for large locations."""
+    quest = models.ForeignKey(Quest, on_delete=models.CASCADE, related_name='checkpoints')
+    name = models.CharField(max_length=100)  # e.g., "Trail Head", "Summit"
+    point = gis_models.PointField(geography=True, srid=4326)
+    radius_meters = models.PositiveIntegerField(default=50)  # Validation radius
+    order = models.PositiveSmallIntegerField(default=1)  # Sequence for multi-point quests
+    is_required = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order']
+        indexes = [
+            models.Index(fields=['quest', 'order']),
+        ]
+
+    def __str__(self):
+        return f"{self.quest.title} - {self.name}"
+
+    @property
+    def latitude(self):
+        return self.point.y if self.point else None
+
+    @property
+    def longitude(self):
+        return self.point.x if self.point else None
+
+
+class UserProgressCheckpoint(models.Model):
+    """Tracks user visits to checkpoints."""
+    quest_log = models.ForeignKey(QuestLog, on_delete=models.CASCADE, related_name='checkpoint_logs')
+    checkpoint = models.ForeignKey(LocationCheckpoint, on_delete=models.CASCADE)
+    visited_at = models.DateTimeField(auto_now_add=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6)
+
+    class Meta:
+        unique_together = ('quest_log', 'checkpoint')
+        indexes = [
+            models.Index(fields=['quest_log', 'checkpoint']),
+            models.Index(fields=['visited_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.quest_log.user.username} - {self.checkpoint.name}"
+
+
+class Badge(models.Model):
+    """Achievement badge definitions."""
+    BADGE_TIERS = [
+        ('bronze', 'Bronze'),
+        ('silver', 'Silver'),
+        ('gold', 'Gold'),
+        ('platinum', 'Platinum'),
+    ]
+    BADGE_CATEGORIES = [
+        ('quest_completion', 'Quest Completion'),
+        ('quest_type', 'Quest Type'),
+        ('environmental', 'Environmental Impact'),
+        ('social', 'Social Engagement'),
+        ('streak', 'Activity Streak'),
+    ]
+
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    icon = models.ImageField(upload_to='badges/', blank=True, null=True)
+    tier = models.CharField(max_length=20, choices=BADGE_TIERS)
+    category = models.CharField(max_length=30, choices=BADGE_CATEGORIES)
+    requirement_type = models.CharField(max_length=50)  # e.g., 'quest_count', 'xp_threshold'
+    requirement_value = models.PositiveIntegerField()  # e.g., 10 quests, 1000 XP
+    quest_type_filter = models.CharField(max_length=20, choices=Quest.QUEST_TYPES, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['category', 'tier', 'name']
+
+    def __str__(self):
+        return f"{self.get_tier_display()} - {self.name}"
+
+    def get_tier_display(self):
+        return dict(self.BADGE_TIERS)[self.tier]
+
+    def get_category_display(self):
+        return dict(self.BADGE_CATEGORIES)[self.category]
+
+
+class UserBadge(models.Model):
+    """User achievement progress tracking."""
+    user = models.ForeignKey(RegisterUser, on_delete=models.CASCADE, related_name='badges')
+    badge = models.ForeignKey(Badge, on_delete=models.CASCADE)
+    earned_at = models.DateTimeField(auto_now_add=True)
+    progress = models.PositiveIntegerField(default=0)  # Current progress toward badge
+    is_complete = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ('user', 'badge')
+        ordering = ['-earned_at']
+
+    def __str__(self):
+        status = "Complete" if self.is_complete else f"{self.progress}/{self.badge.requirement_value}"
+        return f"{self.user.username} - {self.badge.name} ({status})"
+
+
+class CarbonImpact(models.Model):
+    """Environmental impact calculations for completed quests."""
+    user = models.ForeignKey(RegisterUser, on_delete=models.CASCADE, related_name='carbon_impacts')
+    quest_log = models.OneToOneField(QuestLog, on_delete=models.CASCADE, related_name='carbon_impact')
+    activity_type = models.CharField(max_length=50)  # 'walking', 'cycling', etc.
+    distance_km = models.DecimalField(max_digits=8, decimal_places=2)
+    carbon_saved_kg = models.DecimalField(max_digits=8, decimal_places=4)
+    trees_equivalent = models.DecimalField(max_digits=6, decimal_places=4)  # Trees that would absorb this CO2
+    calculated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-calculated_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.carbon_saved_kg}kg CO2 saved"
+
+
+class LeaderboardEntry(models.Model):
+    """Cached rankings for performance."""
+    LEADERBOARD_TYPES = [
+        ('global_xp', 'Global XP'),
+        ('regional_xp', 'Regional XP'),
+        ('category_xp', 'Category XP'),
+        ('environmental', 'Environmental Impact'),
+    ]
+
+    user = models.ForeignKey(RegisterUser, on_delete=models.CASCADE, related_name='leaderboard_entries')
+    leaderboard_type = models.CharField(max_length=30, choices=LEADERBOARD_TYPES)
+    region = models.CharField(max_length=100, blank=True)  # For regional leaderboards
+    quest_type = models.CharField(max_length=20, choices=Quest.QUEST_TYPES, blank=True, null=True)
+    score = models.PositiveIntegerField(default=0)
+    rank = models.PositiveIntegerField()
+    period = models.CharField(max_length=20, default='all_time')  # 'weekly', 'monthly', 'all_time'
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'leaderboard_type', 'region', 'quest_type', 'period')
+        indexes = [
+            models.Index(fields=['leaderboard_type', 'region', 'period', 'rank']),
+        ]
+        ordering = ['rank']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.leaderboard_type} Rank #{self.rank}"
         
