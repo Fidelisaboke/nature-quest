@@ -3,10 +3,16 @@
 
 import os
 import sys
+from pathlib import Path
 
 
 def main():
     """Run administrative tasks."""
+    # Add the project directory to the Python path
+    project_root = str(Path(__file__).resolve().parent)
+    if project_root not in sys.path:
+        sys.path.append(project_root)
+    
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")
     try:
         from django.core.management import execute_from_command_line

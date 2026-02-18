@@ -1,6 +1,7 @@
+from django.core.mail import send_mail
 from rest_framework.decorators import api_view,permission_classes
 from apps.common.responses.api_responses import api_response
-from .serializers import UserRegistrationSerializer, LoginObtainPairSerializer,UserProfileSerializer
+from .serializers import PasswordResetConfirmSerializer, PasswordResetSerializer, UserRegistrationSerializer, LoginObtainPairSerializer,UserProfileSerializer
 from drf_spectacular.utils import extend_schema
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -14,7 +15,74 @@ from .docs import (
 )
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .models import UserProfile
+from .models import RegisterUser, UserProfile
+
+@extend_schema(
+    summary="Initiate the password reset process",
+    tags=["auth"],
+    description="Send a password reset email to the user's registered email address.",
+    request=PasswordResetSerializer,
+    responses={200: "Password reset email sent successfully", 404: "User not found", 400: "Bad request", 500: "Internal Server Error"},
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def password_reset_request(request):
+    """Initiate the password reset process."""
+    serializer = PasswordResetSerializer(data=request.data)
+    if serializer.is_valid():
+        email = serializer.validated_data['email']
+
+        try:
+            user = RegisterUser.objects.get(email=email)
+
+            # Generate a password reset token
+            token = user.generate_password_reset_token()
+            uid = user.id
+            # TODO: Send the email with the reset link
+            send_password_reset_email(user, token, uid)
+        except RegisterUser.DoesNotExist:
+            return api_response(
+                False, "User not found", status_code=404
+            )
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@extend_schema(
+    summary="Confirm the password reset",
+    tags=["auth"],
+    request=PasswordResetConfirmSerializer,
+    responses={200: "Password reset successfully", 400: "Bad request", 500: "Internal Server Error"},
+)
+def password_reset_confirm(request):
+    """Confirm the password reset."""
+    serializer = PasswordResetConfirmSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        return api_response(
+            True, "Password reset successfully", status_code=200
+        )
+    return api_response(
+        False, "Validation error", errors=serializer.errors, status_code=400
+    )
+
+def send_password_reset_email(user, token, uid):
+    """Send a password reset email to the user."""
+    subject = "Nature Quest - Password Reset"
+    message = f"""
+    Hello {user.first_name},
+    You requested to reset your password. Please click the link below to set a new password:
+    http://example.com/reset-password/{uid}/{token}
+
+    This link will expire in 1 hour. If you did not request a password reset, please ignore this email.
+
+    Best regards,
+    The Nature Quest Team
+    """
+
+    send_mail(subject, message, "from_email@example.com", [user.email], fail_silently=False)
+    return api_response(
+        True, "Password reset email sent successfully", status_code=200
+    )
 
 @extend_schema(**user_register_schema_args, tags=["auth"])
 @api_view(["POST"])
@@ -39,13 +107,13 @@ def register_user(request):
 
 
 class LoginObtainPairView(TokenObtainPairView):
-    """Custom token obtain view with API documentation."""
+    """Custom token gets view with API documentation."""
 
     serializer_class = LoginObtainPairSerializer
 
     @extend_schema(**user_login_schema_args, tags=["auth"])
     def post(self, request, *args, **kwargs):
-        """Authenticate user and return JWT tokens."""
+        """Authenticate the user and return JWT tokens."""
         response = super().post(request, *args, **kwargs)
         if response.status_code == 200:
             return api_response(
@@ -75,10 +143,10 @@ class LoginRefreshView(TokenRefreshView):
 def get_user_profile(request):
     """
     Retrieve the authenticated user's profile.
-    Automatically creates profile if it doesn't exist.
+    Automatically creates a profile if it doesn't exist.
     """
     try:
-        # Get or create user profile (creates with default values if not exists)
+        # Get or create a user profile (creates with default values if not exists)
         profile, created = UserProfile.objects.get_or_create(user=request.user)
         
         serializer = UserProfileSerializer(profile)

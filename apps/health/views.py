@@ -7,7 +7,7 @@ import sys
 from drf_spectacular.utils import extend_schema
 from .docs import health_schema_args
 from django.conf import settings
-from datetime import datetime
+from datetime import datetime, timezone
 from .serializers import HealthSerializer
 
 tags = ["health"]
@@ -15,11 +15,11 @@ tags = ["health"]
 
 class HealthView(GenericAPIView):
     serializer_class = HealthSerializer
-    server_start_time = datetime.utcnow()
+    server_start_time = datetime.now(timezone.utc)
 
     @extend_schema(**health_schema_args)
     def get(self, request):
-        uptime = (datetime.utcnow() - self.server_start_time).total_seconds()
+        uptime = (datetime.now(timezone.utc) - self.server_start_time).total_seconds()
         data = {
             "status": "ok",
             "timestamp": timezone.now().isoformat(),

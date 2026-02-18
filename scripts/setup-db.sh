@@ -33,8 +33,37 @@ warn() {
 # =============================================================================
 
 run_psql_super() {
-    PGPASSWORD="${POSTGRES_ADMIN_PASSWORD:-}" psql -U postgres -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -d postgres -c "$1"
+    local sql="$1"
+    local db="${2:-postgres}"
+    # Prefer non-interactive sudo; fall back to password only if explicitly allowed.
+    if [ -z "${POSTGRES_ADMIN_PASSWORD:-}" ]; then
+        # Try non-interactive sudo first
+        if sudo -n -u postgres psql -v ON_ERROR_STOP=1 -d "$db" -c "$sql" 2>/dev/null; then
+            return 0
+        fi
+        # Only use the default “postgres” password if explicitly opted in
+        if [ "${POSTGRES_ASSUME_DEFAULT_PASSWORD:-false}" = "true" ]; then
+            PGPASSWORD="postgres" psql \
+              -U postgres \
+              -h "$POSTGRES_HOST" \
+              -p "$POSTGRES_PORT" \
+              -d "$db" \
+              -v ON_ERROR_STOP=1 \
+              -c "$sql"
+        else
+            return 1
+        fi
+    else
+        PGPASSWORD="$POSTGRES_ADMIN_PASSWORD" psql \
+          -U postgres \
+          -h "$POSTGRES_HOST" \
+          -p "$POSTGRES_PORT" \
+          -d "$db" \
+          -v ON_ERROR_STOP=1 \
+          -c "$sql"
+    fi
 }
+
 
 run_psql_db() {
     PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -d "$POSTGRES_DB" -c "$1"
@@ -80,10 +109,13 @@ log "  User: $POSTGRES_USER"
 # =============================================================================
 
 log "Testing PostgreSQL connection..."
-if ! pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U postgres >/dev/null 2>&1; then
-    error "Cannot connect to PostgreSQL server at $POSTGRES_HOST:$POSTGRES_PORT"
-    error "Please ensure PostgreSQL is running and accessible"
-    exit 1
+if ! sudo -u postgres psql -c '\q' 2>/dev/null; then
+    if ! pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U postgres >/dev/null 2>&1; then
+        error "Cannot connect to PostgreSQL server at $POSTGRES_HOST:$POSTGRES_PORT"
+        error "Please ensure PostgreSQL is running and accessible"
+        error "You may need to set up PostgreSQL authentication or provide POSTGRES_ADMIN_PASSWORD"
+        exit 1
+    fi
 fi
 success "PostgreSQL server is accessible"
 
@@ -126,10 +158,10 @@ log "Enabling required extensions in '$POSTGRES_DB'..."
 
 extensions=("postgis" "uuid-ossp" "pg_trgm")
 for ext in "${extensions[@]}"; do
-    log "Installing extension: $ext"
-    PGPASSWORD="${POSTGRES_ADMIN_PASSWORD:-}" psql -U postgres -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -d "$POSTGRES_DB" -c "CREATE EXTENSION IF NOT EXISTS \"$ext\" WITH SCHEMA public;" || {
+        log "Installing extension: $ext"
+    if ! run_psql_super "CREATE EXTENSION IF NOT EXISTS \"$ext\" WITH SCHEMA public;" "$POSTGRES_DB" 2>/dev/null; then
         warn "Could not install extension '$ext'. This might be okay for basic functionality."
-    }
+    fi
 done
 
 log "Granting schema permissions..."
